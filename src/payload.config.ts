@@ -1,5 +1,6 @@
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
+import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import { es } from '@payloadcms/translations/languages/es'
 import path from 'path'
 import { buildConfig } from 'payload'
@@ -58,5 +59,15 @@ export default buildConfig({
     limits: { fileSize: 25 * 1024 * 1024 },
   },
   sharp,
-  plugins: [],
+  plugins: [
+    // En Vercel las imágenes se guardan en Vercel Blob (su disco no es permanente).
+    // En tu PC, sin BLOB_READ_WRITE_TOKEN, se siguen guardando en la carpeta /media.
+    vercelBlobStorage({
+      enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+      collections: { media: true },
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      // El navegador sube el archivo directo a Blob: evita el límite de 4,5 MB de Vercel
+      clientUploads: true,
+    }),
+  ],
 })
