@@ -1,0 +1,120 @@
+@import 'tailwindcss';
+
+/* Paleta de CONTRA MARGEN: blanco roto, negro, rojo y naranja */
+@theme {
+  --color-paper: #faf6ee;
+  --color-paper-deep: #f1e9db;
+  --color-ink: #151312;
+  --color-ink-soft: #2a2623;
+  --color-muted: #5c5650;
+  --color-rule: #d9d0c3;
+  --color-rojo: #b42318;
+  --color-naranja: #e2611b;
+
+  --font-display: var(--font-playfair), Georgia, 'Times New Roman', serif;
+  --font-serif: var(--font-source-serif), Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-franklin), 'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-serif);
+    background: var(--color-paper);
+    color: var(--color-ink);
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--color-naranja);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-naranja);
+    outline-offset: 3px;
+  }
+}
+
+/* Etiqueta pequeña en mayúsculas (sección, "Por ...") */
+@utility kicker {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Cuerpo de lectura del artículo */
+@utility prose-cm {
+  font-family: var(--font-serif);
+  font-size: 1.1875rem;
+  line-height: 1.7;
+  color: var(--color-ink);
+
+  & p {
+    margin-block: 0 1.25em;
+  }
+
+  /* Letra capitular en el primer párrafo */
+  & > p:first-of-type::first-letter {
+    float: left;
+    font-family: var(--font-display);
+    font-size: 4.2em;
+    line-height: 0.85;
+    padding: 0.08em 0.1em 0 0;
+    color: var(--color-rojo);
+  }
+
+  & h2 {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    line-height: 1.2;
+    margin: 2em 0 0.6em;
+  }
+
+  & h3 {
+    font-family: var(--font-display);
+    font-size: 1.375rem;
+    margin: 1.6em 0 0.5em;
+  }
+
+  & blockquote {
+    border-left: 4px solid var(--color-naranja);
+    padding-left: 1.25rem;
+    margin: 1.75em 0;
+    font-style: italic;
+    font-size: 1.3em;
+    line-height: 1.45;
+  }
+
+  & a {
+    color: var(--color-rojo);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  & ul,
+  & ol {
+    padding-left: 1.4em;
+    margin-bottom: 1.25em;
+  }
+
+  & ul {
+    list-style: disc;
+  }
+
+  & ol {
+    list-style: decimal;
+  }
+
+  & img {
+    max-width: 100%;
+    height: auto;
+  }
+}
