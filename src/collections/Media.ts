@@ -4,21 +4,39 @@ import { anyone, authenticated } from '@/access/authenticated'
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
+const tooBig = (bytes: number) =>
+  new APIError(
+    `La imagen pesa ${(bytes / 1024 / 1024).toFixed(1)} MB. El máximo permitido es 5 MB.`,
+    400,
+    null,
+    true,
+  )
+
 export const Media: CollectionConfig = {
   slug: 'media',
   labels: { singular: 'Imagen', plural: 'Imágenes' },
   admin: { description: 'Formatos: JPG, PNG, WebP o AVIF. Tamaño máximo: 5 MB.' },
   hooks: {
-    // Mensaje claro en español si la imagen es demasiado pesada
+    // Mensaje claro en español si la imagen es demasiado pesada.
+    // 1) Subida normal al servidor (tu PC): se revisa el archivo recibido.
     beforeOperation: [
       ({ args, operation }) => {
         const file = args.req?.file
         const size = file?.size ?? file?.data?.length ?? 0
         if ((operation === 'create' || operation === 'update') && size > MAX_IMAGE_BYTES) {
-          const mb = (size / 1024 / 1024).toFixed(1)
-          throw new APIError(`La imagen pesa ${mb} MB. El máximo permitido es 5 MB.`, 400, null, true)
+          throw tooBig(size)
         }
         return args
+      },
+    ],
+    // 2) En Vercel la imagen sube directo a Blob sin pasar por el servidor:
+    //    se revisa el peso que Payload calcula antes de guardar.
+    beforeValidate: [
+      ({ data }) => {
+        if (typeof data?.filesize === 'number' && data.filesize > MAX_IMAGE_BYTES) {
+          throw tooBig(data.filesize)
+        }
+        return data
       },
     ],
   },

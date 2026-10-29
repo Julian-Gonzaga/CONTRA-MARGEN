@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext } from '@playwright/test'
 import sharp from 'sharp'
 
-import { adminUser } from '../helpers/login'
+import { adminUser, login } from '../helpers/login'
 
 // Pruebas de regresión de los problemas que encontró la revisión adversa
 
@@ -32,7 +32,7 @@ test.describe('Regresiones de la revisión QA', () => {
 
   test('el título 404 es específico y hay favicon', async ({ page }) => {
     await page.goto('/articulos/no-existe')
-    await expect(page).toHaveTitle(/no encontrada/i)
+    await expect(page).toHaveTitle(/no encontrad[oa]/i)
     await expect(page.locator('link[rel="icon"]').first()).toHaveAttribute('href', /icon/)
   })
 
@@ -95,24 +95,49 @@ test.describe('Regresiones de la revisión QA', () => {
     }
   })
 
-  test('una imagen de más de 5 MB muestra un mensaje claro en español', async ({ request }) => {
-    // Imagen JPG real de ruido aleatorio: pesa más de 5 MB
-    const buffer = await sharp({
-      create: { width: 2600, height: 2600, channels: 3, background: '#000', noise: { type: 'gaussian', mean: 128, sigma: 80 } },
-    })
-      .jpeg({ quality: 100 })
-      .toBuffer()
-    expect(buffer.length).toBeGreaterThan(5 * 1024 * 1024)
+  test.describe('imágenes de más de 5 MB', () => {
+    let buffer: Buffer
 
-    const token = await adminToken(request)
-    const res = await request.post('/api/media', {
-      headers: { Authorization: `JWT ${token}` },
-      multipart: {
-        file: { name: 'grande.jpg', mimeType: 'image/jpeg', buffer },
-        _payload: JSON.stringify({ alt: 'demasiado grande' }),
-      },
+    test.beforeAll(async () => {
+      // Imagen JPG real de ruido aleatorio: pesa más de 5 MB
+      buffer = await sharp({
+        create: { width: 2600, height: 2600, channels: 3, background: '#000', noise: { type: 'gaussian', mean: 128, sigma: 80 } },
+      })
+        .jpeg({ quality: 100 })
+        .toBuffer()
+      expect(buffer.length).toBeGreaterThan(5 * 1024 * 1024)
     })
-    expect(res.status()).toBe(400)
-    expect(JSON.stringify(await res.json())).toContain('máximo permitido es 5 MB')
+
+    test('por la API se rechazan (en Vercel la plataforma corta antes: 413)', async ({ request }) => {
+      const token = await adminToken(request)
+      const res = await request.post('/api/media', {
+        headers: { Authorization: `JWT ${token}` },
+        multipart: {
+          file: { name: 'grande.jpg', mimeType: 'image/jpeg', buffer },
+          _payload: JSON.stringify({ alt: 'demasiado grande' }),
+        },
+      })
+      if (process.env.BASE_URL) {
+        expect([400, 413]).toContain(res.status())
+      } else {
+        expect(res.status()).toBe(400)
+        expect(JSON.stringify(await res.json())).toContain('máximo permitido es 5 MB')
+      }
+    })
+
+    test('desde el panel se muestra un mensaje claro en español y no se guarda', async ({ page, request }) => {
+      await login(page)
+      await page.goto('/admin/collections/media/create')
+      await page.setInputFiles('input[type="file"]', { name: 'grande-panel.jpg', mimeType: 'image/jpeg', buffer })
+      await page.fill('#field-alt', 'prueba demasiado grande')
+      await page.getByRole('button', { name: /^Guardar$/ }).click()
+      await expect(page.locator('.payload-toast-container')).toContainText('máximo permitido es 5 MB')
+
+      const token = await adminToken(request)
+      const res = await request.get('/api/media?where[alt][equals]=prueba%20demasiado%20grande', {
+        headers: { Authorization: `JWT ${token}` },
+      })
+      expect((await res.json()).totalDocs).toBe(0)
+    })
   })
 })
